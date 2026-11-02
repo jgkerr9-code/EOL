@@ -1,0 +1,42 @@
+name: Live Lifecycle Sync
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Run data fetcher
+      run: python update_lifecycle.py
+
+    - name: Save updates back to GitHub
+      run: |
+        git config --local user.email "github-actions[bot]@://github.com"
+        git config --local user.name "github-actions[bot]"
+        if [ -n "$(git status --porcelain all_versions.xlsx)" ]; then
+          git add all_versions.xlsx
+          git commit -m "chore: auto-update real-time lifecycle data [skip ci]"
+          git push
+        else
+          echo "No data changes detected today."
+        fi
